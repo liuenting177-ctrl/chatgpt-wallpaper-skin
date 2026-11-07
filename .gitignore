@@ -1,0 +1,17 @@
+# runtime state, never commit
+*.log
+config.json
+runtime/
+node_modules/
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# large local test material
+*.mp4
+*.webm
+*.mov
+*.mkv
+.install-test/

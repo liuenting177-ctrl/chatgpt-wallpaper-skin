@@ -1,0 +1,125 @@
+/* ChatGPT Wallpaper Skin — glass skin for the ChatGPT desktop app.
+ *
+ * Injected at runtime by agent.cjs. Nothing here edits the app: it only overrides
+ * the app's own CSS design tokens so the wallpaper layer behind the app canvas
+ * shows through, then adds a light glass tint where it helps legibility.
+ *
+ * Tweak freely — the agent hot-reloads this file within ~1.5s.
+ *   --wesk-glass-rgb : colour the translucent panels are tinted with
+ *   --wesk-accent    : accent / focus / selection colour
+ *   --wesk-scrim     : set by config.json (scrim), not here
+ */
+
+:root {
+  --wesk-glass-rgb: 13, 21, 36;
+  --wesk-accent: 103, 220, 231;
+}
+
+/* ---------- wallpaper layer ---------- */
+#wesk-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #070b12;
+  pointer-events: none;
+}
+#wesk-bg video {
+  width: 100%;
+  height: 100%;
+  object-fit: __OBJECT_FIT__;
+  display: block;
+}
+#wesk-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(4, 7, 14, var(--wesk-scrim, 0.22));
+}
+
+html,
+body {
+  background: transparent !important;
+}
+
+/* ---------- tokens: opaque surfaces -> translucent navy ---------- */
+:root[data-wesk="1"] {
+  --chat-background-color: rgba(var(--wesk-glass-rgb), 0.3);
+  --color-surface: rgba(var(--wesk-glass-rgb), 0.3);
+  --color-surface-secondary: rgba(var(--wesk-glass-rgb), 0.42);
+  --color-surface-tertiary: rgba(var(--wesk-glass-rgb), 0.5);
+  --color-surface-card: rgba(var(--wesk-glass-rgb), 0.55);
+  --color-surface-elevated: rgba(var(--wesk-glass-rgb), 0.8);
+  --color-surface-elevated-secondary: rgba(var(--wesk-glass-rgb), 0.88);
+  --color-token-main-surface-primary: rgba(var(--wesk-glass-rgb), 0.3);
+  --wb-surface-primary: rgba(var(--wesk-glass-rgb), 0.3);
+  --wb-surface-secondary: rgba(var(--wesk-glass-rgb), 0.42);
+  --color-token-bg-primary: rgba(var(--wesk-glass-rgb), 0.22);
+  --color-token-bg-secondary: rgba(var(--wesk-glass-rgb), 0.4);
+  --color-token-bg-tertiary: rgba(var(--wesk-glass-rgb), 0.5);
+  --color-token-side-bar-background: rgba(7, 12, 20, 0.5);
+  --color-background-primary-surface: rgba(var(--wesk-glass-rgb), 0.3);
+  --color-background-composer-surface: rgba(var(--wesk-glass-rgb), 0.62);
+  --composer-background-color: rgba(var(--wesk-glass-rgb), 0.62);
+  --color-background-user-message: rgba(var(--wesk-accent), 0.14);
+  --user-message-background-color: rgba(var(--wesk-accent), 0.14);
+  --color-background-secondary-soft: rgba(255, 255, 255, 0.06);
+  --smoothing-background-color: transparent;
+  --color-background-application-menu: rgba(10, 16, 26, 0.92);
+  --app-color-background-application-menu: rgba(10, 16, 26, 0.92);
+  --color-token-dropdown-background: rgba(10, 16, 26, 0.94);
+  --color-token-list-hover-background: rgba(255, 255, 255, 0.07);
+}
+
+/* the app shell paints its own canvas in a few places */
+#root,
+#root > * {
+  background-color: transparent;
+}
+
+/* outermost <main> only wraps the shell: keep it clear so the rail/sidebar
+   frosted panes are the only thing between the wallpaper and the eye */
+#root main:not([class*="MainContentSurface"]) {
+  background-color: transparent !important;
+}
+
+/* The conversation / page pane. Kept nearly clear on purpose — the wallpaper is the
+   point. A light tint only takes the edge off the brightest frames; blur stays off so
+   the artwork is still recognisable. The two <main> elements are siblings (not
+   nested), so match the content one by its stable class prefix. */
+main[class*="MainContentSurface"] {
+  background-color: rgba(9, 14, 24, 0.07) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  outline: none !important;
+}
+
+/* ---------- glass ---------- */
+/* left rail + sidebar get a frosted pane so the session list stays readable */
+#root nav,
+#root aside {
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
+/* composer keeps a stronger pane: it is where you type */
+#root form,
+#root [data-testid="composer"] {
+  backdrop-filter: blur(16px) saturate(115%);
+  -webkit-backdrop-filter: blur(16px) saturate(115%);
+  border-radius: 16px;
+}
+
+/* accent: focus ring + selection follow the glass accent instead of plain blue */
+:root[data-wesk="1"] {
+  --color-text-accent: rgb(var(--wesk-accent));
+  --color-background-accent-action: rgb(var(--wesk-accent));
+}
+
+::selection {
+  background: rgba(var(--wesk-accent), 0.28) !important;
+}
+
+/* If text is hard to read over a bright clip, raise "scrim" in config.json, or add your
+   own rules in a file and point "cssExtraFile" at it — they are appended after these. */

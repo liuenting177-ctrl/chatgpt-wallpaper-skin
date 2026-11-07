@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "comment": "Written by install.ps1. Paths are absolute. Delete this file and re-run install.ps1 to reconfigure.",
+
+  "appName": "ChatGPT",
+  "appExeName": "ChatGPT.exe",
+  "appAumid": "",
+  "appPackageName": "OpenAI.Codex",
+
+  "mediaPort": 8756,
+  "cdpPort": 9333,
+
+  "videoPath": "",
+  "videoObjectFit": "cover",
+
+  "scrim": 0.22,
+  "cssFile": "glass.css",
+  "cssExtraFile": "",
+
+  "petExe": "",
+  "petProcessName": "",
+
+  "nodePath": ""
+}
