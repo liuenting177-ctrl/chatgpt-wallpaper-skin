@@ -65,6 +65,19 @@
 - 改 `config.json` 里的 `scrim`：画面太亮/字看不清就调大（0.3~0.45），想让壁纸更显眼就调小（0.1~0.2）。改完重启 ChatGPT 生效。
 - 换壁纸：改 `config.json` 的 `videoPath`，或者重跑一遍 `install.ps1 -Video "..."`。
 
+### 可选：和桌面桌宠联动
+
+如果你有桌面桌宠（比如 PySide6 写的那种），可以让它跟着 ChatGPT 一起出现：
+
+```json
+{
+  "petExe": "D:\\Applications\\YourPet\\YourPet.exe",
+  "petProcessName": "YourPet"
+}
+```
+
+写在 `config.json` 里（`petProcessName` 可省，默认取 exe 文件名）。之后 `watchdog.ps1` 会在「ChatGPT 从没运行变成运行」的那一刻拉起桌宠一次；你手动关掉它不会被强行拉回来，下次开 ChatGPT 才再出现。
+
 ## 卸载
 
 ```powershell
