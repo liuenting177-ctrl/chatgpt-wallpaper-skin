@@ -126,7 +126,7 @@ if ($sizeMb -gt 300) {
 # ---------------------------------------------------------------- 4. copy files
 Step 4 'Copying files'
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-$files = @('serve.cjs', 'agent.cjs', 'glass.css', 'lib.ps1', 'start.ps1', 'watchdog.ps1', 'ensure.ps1', 'uninstall.ps1')
+$files = @('serve.cjs', 'agent.cjs', 'glass.css', 'lib.ps1', 'start.ps1', 'watchdog.ps1', 'ensure.ps1', 'uninstall.ps1', 'doctor.ps1', 'run-hidden.vbs')
 foreach ($f in $files) {
   Copy-Item (Join-Path $src $f) (Join-Path $InstallDir $f) -Force
 }
@@ -164,12 +164,16 @@ if ($NoAutostart) {
 } else {
   $startup = [Environment]::GetFolderPath('Startup')
   $lnk = Join-Path $startup 'ChatGPT Wallpaper Skin.lnk'
-  $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  # wscript + run-hidden.vbs instead of powershell.exe -WindowStyle Hidden: that switch
+  # still creates a console and hides it afterwards, which flashes a black terminal every
+  # time the watchdog (or the keep-alive task) dispatches something.
+  $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+  $vbs = Join-Path $InstallDir 'run-hidden.vbs'
   $watchdog = Join-Path $InstallDir 'watchdog.ps1'
   $shell = New-Object -ComObject WScript.Shell
   $sc = $shell.CreateShortcut($lnk)
-  $sc.TargetPath = $ps
-  $sc.Arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $watchdog + '"'
+  $sc.TargetPath = $wscript
+  $sc.Arguments = '//nologo "' + $vbs + '" "' + $watchdog + '"'
   $sc.WorkingDirectory = $InstallDir
   $sc.WindowStyle = 7
   $sc.Description = 'Keeps the ChatGPT wallpaper skin working from any launch entry'
@@ -178,7 +182,7 @@ if ($NoAutostart) {
 
   $ensure = Join-Path $InstallDir 'ensure.ps1'
   $taskName = 'ChatGPTWallpaperSkinKeepAlive'
-  $cmd = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $ensure + '"'
+  $cmd = '"' + $wscript + '" //nologo "' + $vbs + '" "' + $ensure + '"'
   & schtasks /Create /TN $taskName /SC MINUTE /MO 2 /TR $cmd /F 2>&1 | Out-Null
   if ($LASTEXITCODE -eq 0) {
     Say "    keep-alive  : scheduled task $taskName (every 2 minutes)"

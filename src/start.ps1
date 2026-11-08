@@ -21,6 +21,27 @@ $media = [int]$config.mediaPort
 $cdp = [int]$config.cdpPort
 $node = Resolve-NodeExe -Config $config
 
+# Any failure lands here, so a broken config is not just a stack trace inside a hidden
+# window: the reason is left in last-error.txt where doctor.ps1 and the user can see it.
+$script:ErrorFile = Join-Path $PSScriptRoot 'last-error.txt'
+trap {
+  $why = $_.Exception.Message
+  $line = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') + '  start.ps1 failed: ' + $why
+  try {
+    [System.IO.File]::WriteAllText($script:ErrorFile, $line + [Environment]::NewLine,
+      (New-Object System.Text.UTF8Encoding($false)))
+  } catch { }
+  Write-Host $why -ForegroundColor Red
+  exit 1
+}
+
+# A missing video is by far the most common breakage (moved or deleted file, renamed
+# folder), and Node would only say so in a log nobody reads.
+$videoProblem = Test-VideoPath -Config $config
+if ($videoProblem) {
+  throw ("$videoProblem  ->  fix videoPath in config.json, or re-run install.ps1 -Video <path>.")
+}
+
 function Stop-Matching([string]$Pattern, [string]$Label) {
   Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -and $_.CommandLine -like $Pattern } |
@@ -55,7 +76,7 @@ if (Test-SkinUrl "http://127.0.0.1:$media/health") {
     if (Test-SkinUrl "http://127.0.0.1:$media/health") { break }
   }
   if (-not (Test-SkinUrl "http://127.0.0.1:$media/health")) {
-    throw "media server did not start. Check that videoPath in config.json points at a real video file."
+    throw "media server did not start on port $media (see media.log). Run doctor.ps1 for a checklist."
   }
   "media server: started on $media"
 }
@@ -136,4 +157,5 @@ if ($NoWatchdog) {
   }
 }
 
+if (Test-Path $script:ErrorFile) { Remove-Item $script:ErrorFile -Force -ErrorAction SilentlyContinue }
 "skin is up. Look tweaks go in glass.css (hot-reloaded), scrim in config.json."

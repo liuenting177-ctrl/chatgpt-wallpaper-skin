@@ -33,8 +33,23 @@ if (-not $aumid) {
 }
 
 # single instance
+#
+# Two watchdogs both polling is not merely wasteful: each one independently decides that
+# the app "has no debug port" and replaces it, so the pair can restart the app in a loop.
+# Naively exiting whenever another one exists is not enough either - the logon item and the
+# keep-alive task can fire within the same second, and then BOTH see an empty field and both
+# stay. So the oldest one wins (by start time, ties broken by pid) and evicts the rest.
 $others = @(Get-SkinWatchdogProcess -SelfPid $PID)
-if ($others.Count -gt 0) { exit 0 }
+if ($others.Count -gt 0) {
+  $self = Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -ErrorAction SilentlyContinue
+  $older = @($others | Where-Object {
+      $_.CreationDate -lt $self.CreationDate -or
+      ($_.CreationDate -eq $self.CreationDate -and $_.ProcessId -lt $PID)
+    })
+  if ($older.Count -gt 0) { exit 0 }
+  Stop-Process -Id (($others | ForEach-Object { $_.ProcessId })) -Force -ErrorAction SilentlyContinue
+  Write-SkinLog -LogName $LogName -Message ("killed duplicate watchdog pid " + (($others | ForEach-Object { $_.ProcessId }) -join ','))
+}
 
 Write-SkinLog -LogName $LogName -Message ("watchdog started (poll=${PollMs}ms aumid=$aumid media=$media cdp=$cdp)")
 

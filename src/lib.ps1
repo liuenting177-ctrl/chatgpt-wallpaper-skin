@@ -11,7 +11,26 @@ function Read-SkinConfig {
   if (-not (Test-Path $script:ConfigPath)) {
     throw "config.json not found in $Root - run install.ps1 first."
   }
-  return Get-Content $script:ConfigPath -Raw | ConvertFrom-Json
+  # -Encoding UTF8 is not optional here: the file is written without a BOM, and without
+  # this switch PowerShell 5.1 decodes it with the ANSI code page, which turns a path
+  # like C:\Users\<non-ASCII>\... into mojibake the moment it is written back.
+  return Get-Content $script:ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+
+function Write-SkinConfig {
+  param($Config)
+  if ($Config -isnot [string]) { $Config = $Config | ConvertTo-Json -Depth 6 }
+  # UTF-8 without BOM: Node's JSON.parse chokes on a leading BOM, our own reader is fine.
+  [System.IO.File]::WriteAllText($script:ConfigPath, $Config, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Test-VideoPath {
+  param($Config)
+  if (-not $Config.videoPath) { return 'config.json has no videoPath' }
+  if (-not (Test-Path -LiteralPath $Config.videoPath)) {
+    return ('videoPath does not exist: ' + $Config.videoPath)
+  }
+  return $null
 }
 
 function Write-SkinLog {
@@ -86,7 +105,17 @@ function Resolve-NodeExe {
 
 function Start-SkinLauncher {
   param([string]$LauncherPath, [switch]$RestartApp)
-  $args = @('-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $LauncherPath + '"'))
+  # Prefer wscript + run-hidden.vbs: powershell.exe -WindowStyle Hidden still CREATES a
+  # console and hides it afterwards, which flashes a terminal window on every dispatch.
+  $vbs = Join-Path $Root 'run-hidden.vbs'
+  $script = if ($LauncherPath) { $LauncherPath } else { Join-Path $Root 'start.ps1' }
+  if (Test-Path $vbs) {
+    $a = @('//nologo', ('"' + $vbs + '"'), ('"' + $script + '"'))
+    if ($RestartApp) { $a += '-RestartApp' }
+    Start-Process -FilePath 'wscript.exe' -ArgumentList $a -WindowStyle Hidden | Out-Null
+    return
+  }
+  $args = @('-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $script + '"'))
   if ($RestartApp) { $args += '-RestartApp' }
   Start-Process -FilePath 'powershell.exe' -ArgumentList $args -WindowStyle Hidden | Out-Null
 }

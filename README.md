@@ -78,6 +78,44 @@
 
 写在 `config.json` 里（`petProcessName` 可省，默认取 exe 文件名）。之后 `watchdog.ps1` 会在「ChatGPT 从没运行变成运行」的那一刻拉起桌宠一次；你手动关掉它不会被强行拉回来，下次开 ChatGPT 才再出现。
 
+## 皮肤不见了怎么办
+
+先跑这一个命令，它会逐项告诉你哪儿断了：
+
+```powershell
+# 安装目录里
+.\doctor.ps1
+```
+
+输出长这样（每行 `[ok]` / `[!!]`，最后给结论和修法）：
+
+```
+1. config
+  [ok] config.json parses (version 1)
+  [ok] wallpaper exists: D:\videos\king.mp4 (9.1 MB)
+2. processes and ports
+  [!!] media server not listening on 8756
+  [!!] injector (agent.cjs) is not running
+...
+VERDICT: 2 problem(s) above.
+```
+
+绝大多数情况是「后台的三个小进程掉了」，直接补起来就行：
+
+```powershell
+.\start.ps1
+```
+
+如果是壁纸文件被你移动/删了，会看到这样一句（同时写进安装目录的 `last-error.txt`）：
+
+```
+videoPath does not exist: D:\videos\king.mp4  ->  fix videoPath in config.json, or re-run install.ps1 -Video <path>.
+```
+
+改 `config.json` 的 `videoPath` 或者重跑 `install.ps1 -Video "新路径"` 即可。
+
+> 为什么以前会「静默坏掉」：`start.ps1` 是在隐藏窗口里跑的，失败信息普通人看不见。现在任何失败都会落到 `last-error.txt`，`doctor.ps1` 也会把它念出来。
+
 ## 卸载
 
 ```powershell
@@ -110,6 +148,8 @@ agent.cjs ── CDP ──▶ 每个 page target 一个 session
 - **`Win32_ProcessStartTrace` 需要管理员**：普通权限收不到进程启动事件，所以只能轮询（250ms 的代价是几乎察觉不到）。
 - **`blur()` 是 CSS 像素**：150% 缩放下 `blur(16px)` 实际会糊成一片，所以内容区不用模糊，只压一层淡色。
 - **PowerShell 5.1 按 ANSI 读脚本**：仓库里所有 `.ps1` 都是纯 ASCII；要加中文注释就得存成 **UTF-8 with BOM（只能一个 BOM）**，双 BOM 会让它报「赋值表达式无效」。
+- **PowerShell 5.1 也按 ANSI 读 `config.json`**：`Get-Content` 不带 `-Encoding UTF8` 会把中文用户名路径读成乱码，再写回去就把 `videoPath` 永久毁掉（本项目真踩过，坏了 13 小时）。所有读写都走 `lib.ps1` 的 `Read-SkinConfig` / `Write-SkinConfig`，别自己 `Get-Content -Raw | ConvertFrom-Json` 再 `Set-Content`。
+- **`powershell.exe -WindowStyle Hidden` 仍会创建控制台**：每 2 分钟闪一次黑窗口。所以自启项和计划任务都走 `wscript.exe //nologo run-hidden.vbs <script>`（GUI 子系统宿主，没有控制台可闪）。
 
 ## 已知限制
 
